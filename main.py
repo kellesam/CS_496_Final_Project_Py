@@ -140,6 +140,10 @@ class PatientHandler(webapp2.RequestHandler):
 			for patient in patients:
 				patient_dict = patient.to_dict()
 				if patient_dict['user_email'] == email:
+					if patient_dict['current_doctor'] != None:
+						doctor = ndb.Key(urlsafe = patient_dict['current_doctor']).get()
+						doctor.patient_count -= 1
+						doctor.put()
 					patient.key.delete()
 
 	def patch(self, id = None):
@@ -194,10 +198,6 @@ class Doctor(ndb.Model):
 	clinic = ndb.StringProperty(required = True)
 	specialty = ndb.StringProperty(required = True)
 	patient_count = ndb.IntegerProperty(required = True)
-	
-#	@classmethod
-#	def query_doctor(cls):
-#		return cls.query().order(-cls.patient_count)
 
 class DoctorHandler(webapp2.RequestHandler):
 	def post(self):
@@ -303,7 +303,9 @@ class DoctorHandler(webapp2.RequestHandler):
 				if doctor_dict['patient_count'] > 0:
 					patients = Patient.query(Patient.current_doctor == id).fetch(1000)
 					for patient in patients:
+						logging.critical(patient.current_doctor)
 						patient.current_doctor = None
+						logging.critical(patient.current_doctor)
 						patient.put()
 				
 				doctor.key.delete()
@@ -315,6 +317,13 @@ class DoctorHandler(webapp2.RequestHandler):
 			for doctor in doctors:
 				doctor_dict = doctor.to_dict()
 				if doctor_dict['user_email'] == email:
+					if doctor_dict['patient_count'] > 0:
+						patients = Patient.query(Patient.current_doctor == doctor.key.urlsafe()).fetch(1000)
+						for patient in patients:
+							logging.critical(patient.current_doctor)
+							patient.current_doctor = None
+							logging.critical(patient.current_doctor)
+							patient.put()
 					doctor.key.delete()
 
 	def patch(self, id = None):
